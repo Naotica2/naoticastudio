@@ -177,7 +177,7 @@ export default function HomePage() {
             data-aos-delay="300"
             className="text-base md:text-lg lg:text-xl text-[var(--text-muted)] mb-6 md:mb-8 max-w-xl"
           >
-            Building beautiful digital experiences and powerful web tools.
+            Building beautiful digital experiences and powerful website.
           </p>
 
           <div
@@ -217,12 +217,11 @@ export default function HomePage() {
             </h2>
             <div className="space-y-3 md:space-y-4 text-sm md:text-base text-[var(--text-secondary)]">
               <p>
-                I&apos;m a passionate developer who loves creating tools that make life easier.
-                My focus is on building clean, efficient, and user-friendly applications.
+                I&apos;m a creative developer who loves learning about technology. It's such a cool field!
               </p>
               <p>
-                With expertise in modern web technologies like Next.js, React, and TypeScript,
-                I create experiences that are both beautiful and functional.
+                Learning tech has enabled me to build beautiful websites like this one. Even though I hit some
+                roadblocks while studying, luckily there's AI now to help me out hahahahha
               </p>
             </div>
           </div>
