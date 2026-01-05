@@ -71,19 +71,50 @@ CREATE TABLE IF NOT EXISTS services (
 CREATE INDEX idx_services_display_order ON services(display_order);
 
 -- ==========================================
+-- WATCHLIST TABLE
+-- Movies/Series yang pernah ditonton
+-- ==========================================
+CREATE TABLE IF NOT EXISTS watchlist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL DEFAULT 'movie', -- 'movie' or 'series'
+    genre VARCHAR(100),
+    year INT,
+    rating DECIMAL(2,1), -- Personal rating 1-10
+    recommended BOOLEAN DEFAULT FALSE,
+    poster_url TEXT,
+    notes TEXT,
+    display_order INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for watchlist
+CREATE INDEX idx_watchlist_type ON watchlist(type);
+CREATE INDEX idx_watchlist_recommended ON watchlist(recommended);
+
+-- ==========================================
 -- SETTINGS TABLE
--- Global app settings
+-- Global app settings (updated with contact & maintenance)
 -- ==========================================
 CREATE TABLE IF NOT EXISTS settings (
     id VARCHAR(50) PRIMARY KEY DEFAULT 'main',
     total_hits INT DEFAULT 0,
     site_name VARCHAR(255) DEFAULT 'Naotica Studio',
+    -- Contact info
+    contact_email VARCHAR(255) DEFAULT 'hello@naotica.studio',
+    github_url TEXT DEFAULT 'https://github.com',
+    instagram_url TEXT DEFAULT 'https://instagram.com',
+    -- Maintenance flags
+    ai_chat_maintenance BOOLEAN DEFAULT TRUE,
+    image_tools_maintenance BOOLEAN DEFAULT TRUE,
+    downloader_maintenance BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Insert default settings
-INSERT INTO settings (id, total_hits, site_name) 
-VALUES ('main', 0, 'Naotica Studio')
+INSERT INTO settings (id, total_hits, site_name, contact_email, github_url, instagram_url, ai_chat_maintenance, image_tools_maintenance, downloader_maintenance) 
+VALUES ('main', 0, 'Naotica Studio', 'hello@naotica.studio', 'https://github.com', 'https://instagram.com', true, true, false)
 ON CONFLICT (id) DO NOTHING;
 
 -- ==========================================
@@ -110,6 +141,7 @@ CREATE INDEX idx_admin_sessions_expires ON admin_sessions(expires_at);
 ALTER TABLE usage_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE watchlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_sessions ENABLE ROW LEVEL SECURITY;
 
@@ -129,12 +161,24 @@ CREATE POLICY "Public can view services" ON services
 CREATE POLICY "Service role can manage services" ON services
     FOR ALL USING (auth.role() = 'service_role');
 
--- Only service role can access usage_logs
-CREATE POLICY "Service role can manage usage_logs" ON usage_logs
+-- Public can read watchlist (for homepage display)
+CREATE POLICY "Public can view watchlist" ON watchlist
+    FOR SELECT USING (true);
+
+-- Only service role can modify watchlist
+CREATE POLICY "Service role can manage watchlist" ON watchlist
     FOR ALL USING (auth.role() = 'service_role');
 
--- Only service role can access settings
+-- Public can read settings (for frontend display)
+CREATE POLICY "Public can view settings" ON settings
+    FOR SELECT USING (true);
+
+-- Only service role can modify settings
 CREATE POLICY "Service role can manage settings" ON settings
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Only service role can access usage_logs
+CREATE POLICY "Service role can manage usage_logs" ON usage_logs
     FOR ALL USING (auth.role() = 'service_role');
 
 -- Only service role can access admin_sessions
@@ -191,6 +235,21 @@ INSERT INTO projects (title, description, image_url, link, tags, featured, displ
 ('AI Chatbot', 'Powered by DeepSeek AI', NULL, '/tools', ARRAY['ai', 'chat', 'deepseek'], true, 2),
 ('Image Tools', 'Upscale and remove backgrounds', NULL, '/tools', ARRAY['image', 'ai', 'tool'], true, 3)
 ON CONFLICT DO NOTHING;
+
+-- ==========================================
+-- MIGRATION SCRIPT (Run this if updating existing database)
+-- ==========================================
+-- Jalankan ini jika tabel settings sudah ada tapi belum punya kolom baru:
+--
+-- ALTER TABLE settings 
+-- ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT 'hello@naotica.studio',
+-- ADD COLUMN IF NOT EXISTS github_url TEXT DEFAULT 'https://github.com',
+-- ADD COLUMN IF NOT EXISTS instagram_url TEXT DEFAULT 'https://instagram.com',
+-- ADD COLUMN IF NOT EXISTS ai_chat_maintenance BOOLEAN DEFAULT TRUE,
+-- ADD COLUMN IF NOT EXISTS image_tools_maintenance BOOLEAN DEFAULT TRUE,
+-- ADD COLUMN IF NOT EXISTS downloader_maintenance BOOLEAN DEFAULT FALSE;
+--
+-- ==========================================
 
 -- ==========================================
 -- DONE!

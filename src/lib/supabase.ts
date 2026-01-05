@@ -57,6 +57,12 @@ export interface Settings {
     id: string;
     total_hits: number;
     site_name: string;
+    contact_email: string;
+    github_url: string;
+    instagram_url: string;
+    ai_chat_maintenance: boolean;
+    image_tools_maintenance: boolean;
+    downloader_maintenance: boolean;
     updated_at: string;
 }
 

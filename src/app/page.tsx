@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Download, MessageSquare, Sparkles, Cake, Calendar, MapPin, Briefcase, ExternalLink } from "lucide-react";
+import { ArrowRight, Download, MessageSquare, Sparkles, Cake, Calendar, MapPin, Briefcase, ExternalLink, Film, Star } from "lucide-react";
 import Link from "next/link";
 import { GlassCard } from "@/components/GlassCard";
 
@@ -13,6 +13,19 @@ interface Service {
   startYear: number;
   endYear: number | null;
   link: string | null;
+}
+
+// Watchlist interface
+interface WatchlistItem {
+  id: string;
+  title: string;
+  type: "movie" | "series";
+  genre: string | null;
+  year: number | null;
+  rating: number | null;
+  recommended: boolean;
+  posterUrl: string | null;
+  notes: string | null;
 }
 
 // Animated Counter Component
@@ -90,10 +103,12 @@ const tools = [
 export default function HomePage() {
   const [projectCount, setProjectCount] = useState(0);
   const [services, setServices] = useState<Service[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
 
   useEffect(() => {
     fetchProjectCount();
     fetchServices();
+    fetchWatchlist();
   }, []);
 
   const fetchProjectCount = async () => {
@@ -117,6 +132,18 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error("Failed to fetch services:", error);
+    }
+  };
+
+  const fetchWatchlist = async () => {
+    try {
+      const response = await fetch("/api/watchlist");
+      const data = await response.json();
+      if (data.success) {
+        setWatchlist(data.watchlist || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch watchlist:", error);
     }
   };
 
@@ -308,6 +335,65 @@ export default function HomePage() {
                   </div>
                 </GlassCard>
               </a>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Watchlist Section */}
+      {watchlist.length > 0 && (
+        <section className="section py-8 md:py-16">
+          <div data-aos="fade-up" className="mb-6 md:mb-8">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2">
+              My <span className="gradient-text">Watchlist</span>
+            </h2>
+            <p className="text-sm md:text-base text-[var(--text-muted)]">Movies &amp; series I&apos;ve watched</p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+            {watchlist.map((item, index) => (
+              <div
+                key={item.id}
+                data-aos="fade-up"
+                data-aos-delay={50 * (index + 1)}
+              >
+                <GlassCard className="h-full p-3 md:p-4 relative overflow-hidden">
+                  {/* Recommended Badge */}
+                  {item.recommended && (
+                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-[10px] font-semibold flex items-center gap-1">
+                      <Star size={10} className="fill-white" />
+                      <span>Recommended</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${item.type === "movie"
+                        ? "bg-gradient-to-br from-red-500 to-pink-500"
+                        : "bg-gradient-to-br from-blue-500 to-purple-500"
+                      }`}>
+                      <Film size={16} />
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent-muted)] text-[var(--accent)] capitalize">
+                      {item.type}
+                    </span>
+                  </div>
+
+                  <h3 className="font-semibold text-sm md:text-base line-clamp-2 mb-1">{item.title}</h3>
+
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                    {item.year && <span>{item.year}</span>}
+                    {item.year && item.genre && <span>•</span>}
+                    {item.genre && <span className="truncate">{item.genre}</span>}
+                  </div>
+
+                  {item.rating && (
+                    <div className="flex items-center gap-1 mt-2">
+                      <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                      <span className="text-xs font-medium">{item.rating}/10</span>
+                    </div>
+                  )}
+                </GlassCard>
+              </div>
             ))}
           </div>
         </section>

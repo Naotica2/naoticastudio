@@ -20,7 +20,9 @@ import {
     Mail,
     Link as LinkIcon,
     Briefcase,
-    Edit3
+    Edit3,
+    Film,
+    Star
 } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { ChartSkeleton, StatSkeleton } from "@/components/Skeleton";
@@ -67,6 +69,18 @@ interface Service {
     startYear: number;
     endYear: number | null;
     link: string | null;
+}
+
+interface WatchlistItem {
+    id: string;
+    title: string;
+    type: "movie" | "series";
+    genre: string | null;
+    year: number | null;
+    rating: number | null;
+    recommended: boolean;
+    posterUrl: string | null;
+    notes: string | null;
 }
 
 // Custom Tooltip
@@ -160,6 +174,20 @@ export default function AdminDashboard() {
         link: "",
     });
     const [savingService, setSavingService] = useState(false);
+    // Watchlist state
+    const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+    const [showAddWatchlist, setShowAddWatchlist] = useState(false);
+    const [editingWatchlist, setEditingWatchlist] = useState<WatchlistItem | null>(null);
+    const [newWatchlistItem, setNewWatchlistItem] = useState({
+        title: "",
+        type: "movie" as "movie" | "series",
+        genre: "",
+        year: "",
+        rating: "",
+        recommended: false,
+        notes: "",
+    });
+    const [savingWatchlist, setSavingWatchlist] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -167,6 +195,7 @@ export default function AdminDashboard() {
         fetchSettings();
         fetchProjects();
         fetchServices();
+        fetchWatchlist();
 
         // Update time on client side only
         setCurrentTime(new Date().toLocaleTimeString());
@@ -369,6 +398,86 @@ export default function AdminDashboard() {
             }
         } catch (error) {
             console.error("Failed to delete service:", error);
+        }
+    };
+
+    // Watchlist CRUD functions
+    const fetchWatchlist = async () => {
+        try {
+            const response = await fetch("/api/watchlist");
+            const data = await response.json();
+            if (data.success) {
+                setWatchlist(data.watchlist);
+            }
+        } catch (error) {
+            console.error("Failed to fetch watchlist:", error);
+        }
+    };
+
+    const addWatchlistItem = async () => {
+        if (!newWatchlistItem.title.trim()) return;
+
+        setSavingWatchlist(true);
+        try {
+            const response = await fetch("/api/watchlist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: newWatchlistItem.title,
+                    type: newWatchlistItem.type,
+                    genre: newWatchlistItem.genre || null,
+                    year: newWatchlistItem.year || null,
+                    rating: newWatchlistItem.rating || null,
+                    recommended: newWatchlistItem.recommended,
+                    notes: newWatchlistItem.notes || null,
+                }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setWatchlist(prev => [data.item, ...prev]);
+                setNewWatchlistItem({ title: "", type: "movie", genre: "", year: "", rating: "", recommended: false, notes: "" });
+                setShowAddWatchlist(false);
+            }
+        } catch (error) {
+            console.error("Failed to add watchlist item:", error);
+        } finally {
+            setSavingWatchlist(false);
+        }
+    };
+
+    const updateWatchlistItem = async () => {
+        if (!editingWatchlist) return;
+
+        setSavingWatchlist(true);
+        try {
+            const response = await fetch("/api/watchlist", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(editingWatchlist),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setWatchlist(prev => prev.map(w => w.id === editingWatchlist.id ? data.item : w));
+                setEditingWatchlist(null);
+            }
+        } catch (error) {
+            console.error("Failed to update watchlist item:", error);
+        } finally {
+            setSavingWatchlist(false);
+        }
+    };
+
+    const deleteWatchlistItem = async (id: string) => {
+        if (!confirm("Delete this item from watchlist?")) return;
+
+        try {
+            const response = await fetch(`/api/watchlist?id=${id}`, { method: "DELETE" });
+            const data = await response.json();
+            if (data.success) {
+                setWatchlist(prev => prev.filter(w => w.id !== id));
+            }
+        } catch (error) {
+            console.error("Failed to delete watchlist item:", error);
         }
     };
 
@@ -985,6 +1094,246 @@ export default function AdminDashboard() {
                                         </button>
                                         <button
                                             onClick={() => deleteService(service.id)}
+                                            className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </GlassCard>
+
+                {/* Watchlist Management */}
+                <GlassCard hover={false} className="mt-8">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                            <Film size={20} className="text-[var(--accent)]" />
+                            <h2 className="text-lg font-semibold">Watchlist Management</h2>
+                        </div>
+                        <button
+                            onClick={() => setShowAddWatchlist(!showAddWatchlist)}
+                            className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
+                        >
+                            <Plus size={16} />
+                            Add Movie/Series
+                        </button>
+                    </div>
+
+                    {/* Add Watchlist Form */}
+                    {showAddWatchlist && (
+                        <div className="mb-6 p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
+                            <div className="grid md:grid-cols-2 gap-4 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Title *"
+                                    value={newWatchlistItem.title}
+                                    onChange={(e) => setNewWatchlistItem(prev => ({ ...prev, title: e.target.value }))}
+                                    className="input-field"
+                                />
+                                <select
+                                    value={newWatchlistItem.type}
+                                    onChange={(e) => setNewWatchlistItem(prev => ({ ...prev, type: e.target.value as "movie" | "series" }))}
+                                    className="input-field"
+                                >
+                                    <option value="movie">Movie</option>
+                                    <option value="series">Series</option>
+                                </select>
+                            </div>
+                            <div className="grid md:grid-cols-3 gap-4 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Genre (e.g., Action, Comedy)"
+                                    value={newWatchlistItem.genre}
+                                    onChange={(e) => setNewWatchlistItem(prev => ({ ...prev, genre: e.target.value }))}
+                                    className="input-field"
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Year"
+                                    value={newWatchlistItem.year}
+                                    onChange={(e) => setNewWatchlistItem(prev => ({ ...prev, year: e.target.value }))}
+                                    className="input-field"
+                                />
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="10"
+                                    placeholder="Rating (1-10)"
+                                    value={newWatchlistItem.rating}
+                                    onChange={(e) => setNewWatchlistItem(prev => ({ ...prev, rating: e.target.value }))}
+                                    className="input-field"
+                                />
+                            </div>
+                            <textarea
+                                placeholder="Notes (optional)"
+                                value={newWatchlistItem.notes}
+                                onChange={(e) => setNewWatchlistItem(prev => ({ ...prev, notes: e.target.value }))}
+                                className="input-field mb-4 min-h-[60px]"
+                            />
+                            <div className="flex items-center gap-4 mb-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newWatchlistItem.recommended}
+                                        onChange={(e) => setNewWatchlistItem(prev => ({ ...prev, recommended: e.target.checked }))}
+                                        className="w-4 h-4 accent-[var(--accent)]"
+                                    />
+                                    <span className="flex items-center gap-1">
+                                        <Star size={14} className="text-yellow-500" />
+                                        Mark as Recommended
+                                    </span>
+                                </label>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={addWatchlistItem}
+                                    disabled={savingWatchlist || !newWatchlistItem.title.trim()}
+                                    className="btn-primary flex items-center gap-2"
+                                >
+                                    {savingWatchlist ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                                    Save
+                                </button>
+                                <button
+                                    onClick={() => setShowAddWatchlist(false)}
+                                    className="btn-secondary"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Edit Watchlist Modal */}
+                    {editingWatchlist && (
+                        <div className="mb-6 p-4 rounded-lg border border-[var(--accent)] bg-[var(--bg-secondary)]">
+                            <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                <Edit3 size={16} />
+                                Editing: {editingWatchlist.title}
+                            </h3>
+                            <div className="grid md:grid-cols-2 gap-4 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Title *"
+                                    value={editingWatchlist.title}
+                                    onChange={(e) => setEditingWatchlist(prev => prev ? { ...prev, title: e.target.value } : null)}
+                                    className="input-field"
+                                />
+                                <select
+                                    value={editingWatchlist.type}
+                                    onChange={(e) => setEditingWatchlist(prev => prev ? { ...prev, type: e.target.value as "movie" | "series" } : null)}
+                                    className="input-field"
+                                >
+                                    <option value="movie">Movie</option>
+                                    <option value="series">Series</option>
+                                </select>
+                            </div>
+                            <div className="grid md:grid-cols-3 gap-4 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Genre"
+                                    value={editingWatchlist.genre || ""}
+                                    onChange={(e) => setEditingWatchlist(prev => prev ? { ...prev, genre: e.target.value } : null)}
+                                    className="input-field"
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Year"
+                                    value={editingWatchlist.year || ""}
+                                    onChange={(e) => setEditingWatchlist(prev => prev ? { ...prev, year: e.target.value ? parseInt(e.target.value) : null } : null)}
+                                    className="input-field"
+                                />
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="10"
+                                    placeholder="Rating (1-10)"
+                                    value={editingWatchlist.rating || ""}
+                                    onChange={(e) => setEditingWatchlist(prev => prev ? { ...prev, rating: e.target.value ? parseFloat(e.target.value) : null } : null)}
+                                    className="input-field"
+                                />
+                            </div>
+                            <div className="flex items-center gap-4 mb-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editingWatchlist.recommended}
+                                        onChange={(e) => setEditingWatchlist(prev => prev ? { ...prev, recommended: e.target.checked } : null)}
+                                        className="w-4 h-4 accent-[var(--accent)]"
+                                    />
+                                    <span className="flex items-center gap-1">
+                                        <Star size={14} className="text-yellow-500" />
+                                        Recommended
+                                    </span>
+                                </label>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={updateWatchlistItem}
+                                    disabled={savingWatchlist}
+                                    className="btn-primary flex items-center gap-2"
+                                >
+                                    {savingWatchlist ? <Loader2 size={16} className="animate-spin" /> : <Edit3 size={16} />}
+                                    Update
+                                </button>
+                                <button
+                                    onClick={() => setEditingWatchlist(null)}
+                                    className="btn-secondary"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Watchlist Items */}
+                    <div className="space-y-3">
+                        {watchlist.length === 0 ? (
+                            <p className="text-[var(--text-muted)] text-center py-8">No movies or series yet. Add your first watch!</p>
+                        ) : (
+                            watchlist.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="flex items-center justify-between p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]"
+                                >
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            <h3 className="font-medium">{item.title}</h3>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${item.type === "movie"
+                                                    ? "bg-red-500/20 text-red-400"
+                                                    : "bg-blue-500/20 text-blue-400"
+                                                }`}>
+                                                {item.type}
+                                            </span>
+                                            {item.recommended && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 flex items-center gap-1">
+                                                    <Star size={10} className="fill-yellow-400" />
+                                                    Recommended
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-1 text-sm text-[var(--text-muted)]">
+                                            {item.year && <span>{item.year}</span>}
+                                            {item.genre && <span>• {item.genre}</span>}
+                                            {item.rating && (
+                                                <span className="flex items-center gap-1">
+                                                    • <Star size={12} className="text-yellow-500 fill-yellow-500" /> {item.rating}/10
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setEditingWatchlist(item)}
+                                            className="p-2 rounded-lg hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--accent)]"
+                                        >
+                                            <Edit3 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => deleteWatchlistItem(item.id)}
                                             className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400"
                                         >
                                             <Trash2 size={16} />

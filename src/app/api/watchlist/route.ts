@@ -1,68 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase";
 
-// Service interface matching database schema
-interface ServiceRow {
+// Watchlist item interface matching database schema
+interface WatchlistRow {
     id: string;
-    place_name: string;
-    description: string | null;
-    start_year: number;
-    end_year: number | null;
-    link: string | null;
+    title: string;
+    type: "movie" | "series";
+    genre: string | null;
+    year: number | null;
+    rating: number | null;
+    recommended: boolean;
+    poster_url: string | null;
+    notes: string | null;
     display_order: number;
     created_at: string;
     updated_at: string;
 }
 
 // Transform database row to API format
-function transformService(row: ServiceRow) {
+function transformWatchlistItem(row: WatchlistRow) {
     return {
         id: row.id,
-        placeName: row.place_name,
-        description: row.description || "",
-        startYear: row.start_year,
-        endYear: row.end_year,
-        link: row.link,
+        title: row.title,
+        type: row.type,
+        genre: row.genre,
+        year: row.year,
+        rating: row.rating,
+        recommended: row.recommended,
+        posterUrl: row.poster_url,
+        notes: row.notes,
         createdAt: row.created_at,
     };
 }
 
-// GET - Fetch all services from Supabase
+// GET - Fetch all watchlist items from Supabase
 export async function GET() {
     try {
         const supabase = createSupabaseAdmin();
 
         const { data, error } = await supabase
-            .from("services")
+            .from("watchlist")
             .select("*")
-            .order("start_year", { ascending: false });
+            .order("recommended", { ascending: false })
+            .order("created_at", { ascending: false });
 
         if (error) {
-            console.error("[Services] Supabase error:", error.message);
+            console.error("[Watchlist] Supabase error:", error.message);
             return NextResponse.json({
                 success: true,
-                services: [],
+                watchlist: [],
                 count: 0,
             });
         }
 
-        const services = (data as ServiceRow[]).map(transformService);
+        const watchlist = (data as WatchlistRow[]).map(transformWatchlistItem);
 
         return NextResponse.json({
             success: true,
-            services,
-            count: services.length,
+            watchlist,
+            count: watchlist.length,
         });
     } catch (error) {
-        console.error("[Services] Error:", error);
+        console.error("[Watchlist] Error:", error);
         return NextResponse.json(
-            { success: false, error: "Failed to fetch services" },
+            { success: false, error: "Failed to fetch watchlist" },
             { status: 500 }
         );
     }
 }
 
-// POST - Add new service to Supabase (admin only)
+// POST - Add new watchlist item to Supabase (admin only)
 export async function POST(request: NextRequest) {
     try {
         // Check admin session
@@ -78,9 +85,9 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
 
         // Validate required fields
-        if (!body.placeName || !body.startYear) {
+        if (!body.title) {
             return NextResponse.json(
-                { success: false, error: "Place name and start year are required" },
+                { success: false, error: "Title is required" },
                 { status: 400 }
             );
         }
@@ -88,43 +95,46 @@ export async function POST(request: NextRequest) {
         const supabase = createSupabaseAdmin();
 
         const { data, error } = await supabase
-            .from("services")
+            .from("watchlist")
             .insert({
-                place_name: body.placeName,
-                description: body.description || null,
-                start_year: parseInt(body.startYear),
-                end_year: body.endYear ? parseInt(body.endYear) : null,
-                link: body.link || null,
+                title: body.title,
+                type: body.type || "movie",
+                genre: body.genre || null,
+                year: body.year ? parseInt(body.year) : null,
+                rating: body.rating ? parseFloat(body.rating) : null,
+                recommended: body.recommended || false,
+                poster_url: body.posterUrl || null,
+                notes: body.notes || null,
             })
             .select()
             .single();
 
         if (error) {
-            console.error("[Services] Supabase insert error:", error.message);
+            console.error("[Watchlist] Supabase insert error:", error.message);
             return NextResponse.json(
-                { success: false, error: "Failed to add service to database" },
+                { success: false, error: "Failed to add watchlist item to database" },
                 { status: 500 }
             );
         }
 
-        const newService = transformService(data as ServiceRow);
+        const newItem = transformWatchlistItem(data as WatchlistRow);
 
-        console.log("[Services] Added to database:", newService.placeName);
+        console.log("[Watchlist] Added to database:", newItem.title);
 
         return NextResponse.json({
             success: true,
-            service: newService,
+            item: newItem,
         });
     } catch (error) {
-        console.error("[Services] Error:", error);
+        console.error("[Watchlist] Error:", error);
         return NextResponse.json(
-            { success: false, error: "Failed to add service" },
+            { success: false, error: "Failed to add watchlist item" },
             { status: 500 }
         );
     }
 }
 
-// PUT - Update service in Supabase (admin only)
+// PUT - Update watchlist item in Supabase (admin only)
 export async function PUT(request: NextRequest) {
     try {
         // Check admin session
@@ -141,7 +151,7 @@ export async function PUT(request: NextRequest) {
 
         if (!body.id) {
             return NextResponse.json(
-                { success: false, error: "Service ID is required" },
+                { success: false, error: "Watchlist item ID is required" },
                 { status: 400 }
             );
         }
@@ -153,53 +163,54 @@ export async function PUT(request: NextRequest) {
             updated_at: new Date().toISOString(),
         };
 
-        if (body.placeName) updateData.place_name = body.placeName;
-        if (body.description !== undefined) updateData.description = body.description || null;
-        if (body.startYear) updateData.start_year = parseInt(body.startYear);
-        if (body.endYear !== undefined) {
-            updateData.end_year = body.endYear === "" || body.endYear === null ? null : parseInt(body.endYear);
-        }
-        if (body.link !== undefined) updateData.link = body.link || null;
+        if (body.title) updateData.title = body.title;
+        if (body.type) updateData.type = body.type;
+        if (body.genre !== undefined) updateData.genre = body.genre || null;
+        if (body.year !== undefined) updateData.year = body.year ? parseInt(body.year) : null;
+        if (body.rating !== undefined) updateData.rating = body.rating ? parseFloat(body.rating) : null;
+        if (typeof body.recommended === "boolean") updateData.recommended = body.recommended;
+        if (body.posterUrl !== undefined) updateData.poster_url = body.posterUrl || null;
+        if (body.notes !== undefined) updateData.notes = body.notes || null;
 
         const { data, error } = await supabase
-            .from("services")
+            .from("watchlist")
             .update(updateData)
             .eq("id", body.id)
             .select()
             .single();
 
         if (error) {
-            console.error("[Services] Supabase update error:", error.message);
+            console.error("[Watchlist] Supabase update error:", error.message);
             if (error.code === "PGRST116") {
                 return NextResponse.json(
-                    { success: false, error: "Service not found" },
+                    { success: false, error: "Watchlist item not found" },
                     { status: 404 }
                 );
             }
             return NextResponse.json(
-                { success: false, error: "Failed to update service in database" },
+                { success: false, error: "Failed to update watchlist item in database" },
                 { status: 500 }
             );
         }
 
-        const updatedService = transformService(data as ServiceRow);
+        const updatedItem = transformWatchlistItem(data as WatchlistRow);
 
-        console.log("[Services] Updated in database:", updatedService.placeName);
+        console.log("[Watchlist] Updated in database:", updatedItem.title);
 
         return NextResponse.json({
             success: true,
-            service: updatedService,
+            item: updatedItem,
         });
     } catch (error) {
-        console.error("[Services] Error:", error);
+        console.error("[Watchlist] Error:", error);
         return NextResponse.json(
-            { success: false, error: "Failed to update service" },
+            { success: false, error: "Failed to update watchlist item" },
             { status: 500 }
         );
     }
 }
 
-// DELETE - Remove service from Supabase (admin only)
+// DELETE - Remove watchlist item from Supabase (admin only)
 export async function DELETE(request: NextRequest) {
     try {
         // Check admin session
@@ -217,7 +228,7 @@ export async function DELETE(request: NextRequest) {
 
         if (!id) {
             return NextResponse.json(
-                { success: false, error: "Service ID is required" },
+                { success: false, error: "Watchlist item ID is required" },
                 { status: 400 }
             );
         }
@@ -225,28 +236,28 @@ export async function DELETE(request: NextRequest) {
         const supabase = createSupabaseAdmin();
 
         const { error } = await supabase
-            .from("services")
+            .from("watchlist")
             .delete()
             .eq("id", id);
 
         if (error) {
-            console.error("[Services] Supabase delete error:", error.message);
+            console.error("[Watchlist] Supabase delete error:", error.message);
             return NextResponse.json(
-                { success: false, error: "Failed to delete service from database" },
+                { success: false, error: "Failed to delete watchlist item from database" },
                 { status: 500 }
             );
         }
 
-        console.log("[Services] Deleted from database ID:", id);
+        console.log("[Watchlist] Deleted from database ID:", id);
 
         return NextResponse.json({
             success: true,
-            message: "Service deleted",
+            message: "Watchlist item deleted",
         });
     } catch (error) {
-        console.error("[Services] Error:", error);
+        console.error("[Watchlist] Error:", error);
         return NextResponse.json(
-            { success: false, error: "Failed to delete service" },
+            { success: false, error: "Failed to delete watchlist item" },
             { status: 500 }
         );
     }
