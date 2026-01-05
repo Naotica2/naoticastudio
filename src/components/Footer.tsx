@@ -76,7 +76,7 @@ export function Footer() {
                             <span className="text-[var(--text-muted)] text-xs md:text-sm ml-2">Studio</span>
                         </Link>
                         <p className="text-[var(--text-muted)] text-xs md:text-sm mb-4 md:mb-6 max-w-sm mx-auto sm:mx-0">
-                            Building beautiful digital experiences and powerful web tools.
+                            Building beautiful digital experiences and powerful website.
                         </p>
 
                         {/* Contact Info */}
