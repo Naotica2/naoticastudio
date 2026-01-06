@@ -217,11 +217,11 @@ export default function HomePage() {
             </h2>
             <div className="space-y-3 md:space-y-4 text-sm md:text-base text-[var(--text-secondary)]">
               <p>
-                I&apos;m a creative developer who loves learning about technology. It's such a cool field!
+                I’m Naotica, and I spend my days turning ideas into reality through building sleek websites and creative coding. I’ve always been fascinated by how things work under the bonnet, which eventually led me into the world of development.
               </p>
               <p>
-                Learning tech has enabled me to build beautiful websites like this one. Even though I hit some
-                roadblocks while studying, luckily there's AI now to help me out hahahahha
+                For me, it’s not just about making things look "pretty." It’s more about making them feel right and easy to use. I take quite a lot of pride in writing tidy code and creating interfaces that people actually enjoy.
+                Want to build something together? Drop me a message and I’d love to hear from you.
               </p>
             </div>
           </div>
